@@ -1,13 +1,13 @@
 package com.jakewharton.dex
 
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
+import java.util.TreeSet
 
 /** Parser for method and field references inside of a dex file. */
 class DexParser private constructor(
-    private val bytes: Iterable<ByteArray>,
-    private val legacyDx: Boolean = false
+  private val bytes: Iterable<ByteArray>,
+  private val legacyDx: Boolean = false
 ) {
   private val dexes by lazy { dexes(bytes, legacyDx) }
 
@@ -15,8 +15,15 @@ class DexParser private constructor(
   @JvmOverloads
   fun withLegacyDx(legacyDx: Boolean = true) = DexParser(bytes, legacyDx)
 
-  fun listMethods() = dexes.flatMap { dex -> dex.methodIds().map { dex.getMethod(it) } }.sorted()
-  fun listFields() = dexes.flatMap { dex -> dex.fieldIds().map { dex.getField(it) } }.sorted()
+  fun list() = dexes.flatMapTo(TreeSet()) { dex ->
+    dex.methodIds().map(dex::getMethod) + dex.fieldIds().map(dex::getField)
+  }.toList()
+
+  fun listMethods() = dexes.flatMapTo(TreeSet()) { dex -> dex.methodIds().map(dex::getMethod) }.toList()
+  fun listFields() = dexes.flatMapTo(TreeSet()) { dex -> dex.fieldIds().map(dex::getField) }.toList()
+
+  /** @return the number of dex files parsed. */
+  fun dexCount(): Int = dexes.size
 
   companion object {
     /** Create a [DexParser] from of any `.dex`, `.class`, `.jar`, `.aar`, or `.apk`. */
@@ -35,8 +42,5 @@ class DexParser private constructor(
     @JvmStatic fun fromBytes(bytes: ByteArray) = fromBytes(listOf(bytes))
     /** Create a [DexParser] from of any `.dex`, `.class`, `.jar`, `.aar`, or `.apk`. */
     @JvmStatic fun fromBytes(bytes: Iterable<ByteArray>) = DexParser(bytes)
-
-    // TODO https://youtrack.jetbrains.com/issue/KT-18242
-    @JvmStatic private fun Path.readBytes() = Files.newInputStream(this).use { it.readBytes() }
   }
 }

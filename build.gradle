@@ -2,39 +2,43 @@ buildscript {
   repositories {
     mavenCentral()
     jcenter()
+    gradlePluginPortal()
   }
   dependencies {
-    classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.2.30'
-    classpath 'org.jetbrains.dokka:dokka-gradle-plugin:0.9.16'
+    classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.3.21'
+    classpath 'org.jetbrains.dokka:dokka-gradle-plugin:0.9.17'
+    classpath 'gradle.plugin.org.jlleitschuh.gradle:ktlint-gradle:5.0.0'
   }
 }
 
-apply plugin: 'java'
+apply plugin: 'java-library'
 apply plugin: 'kotlin'
 apply plugin: 'org.jetbrains.dokka'
 apply plugin: 'maven'
 apply plugin: 'signing'
+apply plugin: 'org.jlleitschuh.gradle.ktlint'
 
 sourceCompatibility = JavaVersion.VERSION_1_6
 targetCompatibility = JavaVersion.VERSION_1_6
 
-group = 'com.jakewharton.dex'
-version = '3.1.1-SNAPSHOT'
+version = '3.3.1-SNAPSHOT'
 
 repositories {
   mavenCentral()
   google()
+  jcenter()
 }
 
 dependencies {
-  compile 'com.xenomachina:kotlin-argparser:2.0.5'
-  compile 'com.jakewharton.android.repackaged:libcore-dex:7.1.0_r7'
-  compile 'com.jakewharton.android.repackaged:dalvik-dx:7.1.0_r7'
-  compile 'com.android.tools:r8:1.0.23'
-  compile 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.30'
-  testCompile 'junit:junit:4.12'
-  testCompile 'com.google.guava:guava:19.0'
-  testCompile 'com.google.truth:truth:0.28'
+  implementation 'com.github.ajalt:clikt:1.5.0'
+  implementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
+  implementation 'com.android.tools:r8:1.4.93'
+  // TODO remove explicit metadata-jvm dependency on next major r8 update
+  implementation 'org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.0.5'
+  implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.3.21'
+  testImplementation 'junit:junit:4.12'
+  testImplementation 'com.google.guava:guava:26.0-jre'
+  testImplementation 'com.google.truth:truth:0.42'
 }
 
 compileKotlin {
@@ -58,9 +62,46 @@ task sourcesJar(type: Jar) {
   from sourceSets.main.allSource
 }
 
+task fatMembersJar(type: Jar, dependsOn: 'compileJava') {
+  from files(sourceSets.main.output.classesDirs)
+  from configurations.runtimeClasspath.asFileTree.files.collect { zipTree(it) }
+
+  classifier 'fat-members'
+
+  manifest {
+   attributes 'Main-Class': 'com.jakewharton.dex.DexMembers'
+  }
+}
+
+def binaryMembersFile = new File(buildDir, "libs/dex-member-list-binary.jar")
+task binaryMembersJar() {
+  dependsOn(fatMembersJar)
+
+  inputs.file(fatMembersJar.archivePath)
+  outputs.file(binaryMembersFile)
+
+  doLast {
+    def fatJarFile = fatMembersJar.archivePath
+
+    binaryMembersFile.getParentFile().mkdirs()
+    binaryMembersFile.delete()
+    binaryMembersFile << "#!/bin/sh\n\nexec java -jar \$0 \"\$@\"\n\n"
+    fatJarFile.withInputStream { binaryMembersFile.append it }
+
+    binaryMembersFile.setExecutable true, false
+  }
+}
+
+task copyBinaryMembers(type: Copy, dependsOn: binaryMembersJar) {
+  from(binaryMembersFile)
+  into buildDir
+  rename(".*", 'dex-member-list')
+}
+assemble.dependsOn(copyBinaryMembers)
+
 task fatMethodsJar(type: Jar, dependsOn: 'compileJava') {
   from files(sourceSets.main.output.classesDirs)
-  from configurations.compile.asFileTree.files.collect { zipTree(it) }
+  from configurations.runtimeClasspath.asFileTree.files.collect { zipTree(it) }
 
   classifier 'fat-methods'
 
@@ -69,7 +110,7 @@ task fatMethodsJar(type: Jar, dependsOn: 'compileJava') {
   }
 }
 
-def binaryMethodsFile = new File(buildDir, "libs/dex-methods-list-binary.jar")
+def binaryMethodsFile = new File(buildDir, "libs/dex-method-list-binary.jar")
 task binaryMethodsJar() {
   dependsOn(fatMethodsJar)
 
@@ -91,14 +132,14 @@ task binaryMethodsJar() {
 task copyBinaryMethods(type: Copy, dependsOn: binaryMethodsJar) {
   from(binaryMethodsFile)
   into buildDir
-  rename(".*", 'dex-methods-list')
+  rename(".*", 'dex-method-list')
 }
 assemble.dependsOn(copyBinaryMethods)
 
 
 task fatFieldsJar(type: Jar, dependsOn: 'compileJava') {
   from files(sourceSets.main.output.classesDirs)
-  from configurations.compile.asFileTree.files.collect { zipTree(it) }
+  from configurations.runtimeClasspath.asFileTree.files.collect { zipTree(it) }
 
   classifier 'fat-fields'
 
@@ -107,7 +148,7 @@ task fatFieldsJar(type: Jar, dependsOn: 'compileJava') {
   }
 }
 
-def binaryFieldsFile = new File(buildDir, "libs/dex-fields-list-binary.jar")
+def binaryFieldsFile = new File(buildDir, "libs/dex-field-list-binary.jar")
 task binaryFieldsJar() {
   dependsOn(fatFieldsJar)
 
@@ -129,7 +170,7 @@ task binaryFieldsJar() {
 task copyFieldsMethods(type: Copy, dependsOn: binaryFieldsJar) {
   from(binaryFieldsFile)
   into buildDir
-  rename(".*", 'dex-fields-list')
+  rename(".*", 'dex-field-list')
 }
 assemble.dependsOn(copyFieldsMethods)
 
@@ -138,6 +179,7 @@ artifacts {
   archives javadocJar
   archives file: binaryMethodsFile, name: 'binary', type: 'jar', builtBy: binaryMethodsJar, classifier: 'binary-methods'
   archives file: binaryFieldsFile, name: 'binary', type: 'jar', builtBy: binaryFieldsJar, classifier: 'binary-fields'
+  archives file: binaryMembersFile, name: 'binary', type: 'jar', builtBy: binaryMembersJar, classifier: 'binary-members'
 }
 
 def isReleaseBuild() {
@@ -169,15 +211,18 @@ uploadArchives {
         authentication(userName: getRepositoryUsername(), password: getRepositoryPassword())
       }
 
+      pom.groupId = 'com.jakewharton.dex'
+      pom.artifactId = 'dex-member-list'
+
       pom.project {
-        name 'Dex Method/Field List'
+        name 'Dex Member List'
         packaging 'jar'
-        description 'A simple utility which lists all method or field references in a dex file.'
-        url 'https://github.com/JakeWharton/dex-method-list'
+        description 'A utility which lists all method and/or field references in a dex file.'
+        url 'https://github.com/JakeWharton/dex-member-list'
 
         scm {
-          connection 'git@github.com:JakeWharton/dex-method-list.git'
-          url 'https://github.com/JakeWharton/dex-method-list'
+          connection 'git@github.com:JakeWharton/dex-member-list.git'
+          url 'https://github.com/JakeWharton/dex-member-list'
         }
 
         licenses {

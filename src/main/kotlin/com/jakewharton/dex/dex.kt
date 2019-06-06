@@ -6,6 +6,7 @@ import com.android.dex.FieldId
 import com.android.dex.MethodId
 import com.android.dx.cf.direct.DirectClassFile
 import com.android.dx.cf.direct.StdAttributeFactory
+import com.android.dx.command.dexer.DxContext
 import com.android.dx.dex.DexOptions
 import com.android.dx.dex.cf.CfOptions
 import com.android.dx.dex.cf.CfTranslator
@@ -16,11 +17,7 @@ import com.android.tools.r8.DexIndexedConsumer
 import com.android.tools.r8.DiagnosticsHandler
 import com.android.tools.r8.origin.Origin
 import java.io.ByteArrayInputStream
-import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
-
-private val CLASS_MAGIC = byteArrayOf(0xCA.toByte(), 0xFE.toByte(), 0xBA.toByte(), 0xBE.toByte())
-private val DEX_MAGIC = byteArrayOf(0x64, 0x65, 0x78, 0x0a, 0x30, 0x33, 0x35, 0x00)
 
 internal fun dexes(inputs: Iterable<ByteArray>, legacyDx: Boolean = false): List<Dex> {
   val classes = mutableListOf<ByteArray>()
@@ -66,10 +63,10 @@ private fun compileWithD8(bytes: List<ByteArray>): ByteArray {
   builder.programConsumer = object : DexIndexedConsumer {
     override fun finished(diagnostics: DiagnosticsHandler) = Unit
     override fun accept(
-        index: Int,
-        bytes: ByteArray,
-        descriptors: Set<String>,
-        diagnostics: DiagnosticsHandler?
+      index: Int,
+      bytes: ByteArray,
+      descriptors: Set<String>,
+      diagnostics: DiagnosticsHandler?
     ) {
       assert(out == null) { "More than one dex file produced" }
       out = bytes
@@ -83,13 +80,14 @@ private fun compileWithD8(bytes: List<ByteArray>): ByteArray {
 
 private fun compileWithDx(bytes: List<ByteArray>): ByteArray {
   val dexOptions = DexOptions()
-  dexOptions.targetApiLevel = DexFormat.API_NO_EXTENDED_OPCODES
+  dexOptions.minSdkVersion = DexFormat.API_NO_EXTENDED_OPCODES
   val dexFile = DexFile(dexOptions)
+  val dxContext = DxContext()
 
   bytes.forEach {
     val cf = DirectClassFile(it, "None.class", false)
     cf.setAttributeFactory(StdAttributeFactory.THE_ONE)
-    CfTranslator.translate(cf, it, CfOptions(), dexOptions, dexFile)
+    CfTranslator.translate(dxContext, cf, it, CfOptions(), dexOptions, dexFile)
   }
 
   return dexFile.toDex(null, false)
@@ -131,32 +129,5 @@ internal fun humanName(type: String): String {
     "V" -> "void"
     "Z" -> "boolean"
     else -> throw IllegalArgumentException("Unknown type $type")
-  }
-}
-
-private fun ByteArray.startsWith(value: ByteArray): Boolean {
-  if (value.size > size) return false
-  value.forEachIndexed { i, byte ->
-    if (get(i) != byte) {
-      return false
-    }
-  }
-  return true
-}
-
-private fun ZipInputStream.entries(): Sequence<ZipEntry> {
-  return object : Sequence<ZipEntry> {
-    override fun iterator(): Iterator<ZipEntry> {
-      return object : Iterator<ZipEntry> {
-        var next: ZipEntry? = null
-
-        override fun hasNext(): Boolean {
-          next = nextEntry
-          return next != null
-        }
-
-        override fun next() = next!!
-      }
-    }
   }
 }

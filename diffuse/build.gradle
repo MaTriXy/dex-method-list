@@ -1,0 +1,50 @@
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'com.vanniktech.maven.publish'
+apply plugin: 'org.jetbrains.dokka'
+apply plugin: 'com.github.gmazzo.buildconfig'
+apply plugin: 'application'
+
+application {
+  mainClass = 'com.jakewharton.diffuse.Diffuse'
+}
+
+dependencies {
+  implementation projects.io
+  implementation projects.formats
+  implementation projects.reports
+  implementation libs.clikt
+  implementation libs.mordant
+
+  testImplementation libs.junit
+  testImplementation libs.assertk
+}
+
+buildConfig {
+  useKotlinOutput {
+    internalVisibility = true
+    topLevelConstants = true
+  }
+
+  packageName('com.jakewharton.diffuse')
+  buildConfigField(String, 'diffuseVersion', version)
+}
+
+// A zip and tar are configured by default. We don't care about tar.
+tasks.named('distTar').configure { task ->
+  task.enabled = false
+}
+
+// Build an exploded application directory by default for local testing.
+tasks.named('assemble').configure { task ->
+  task.dependsOn(tasks.named('installDist'))
+}
+
+// Attach the bundled application zip so that we get free versioned hosting from Maven Central.
+publishing {
+  publications.configureEach {
+    artifact(tasks.named('distZip')) {
+      classifier = 'cli'
+    }
+  }
+}
+

@@ -1,0 +1,23 @@
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'com.vanniktech.maven.publish'
+apply plugin: 'org.jetbrains.dokka'
+
+dependencies {
+  api projects.io
+
+  implementation libs.asm
+
+  implementation libs.apkSigner
+  implementation libs.binaryResources
+  implementation libs.dalvikDx
+
+  implementation libs.bundleTool
+  // TODO bundletool depends on aapt2-proto but with a runtime dependency rather than compile.
+  //  https://github.com/google/bundletool/issues/177
+  implementation libs.aapt2Proto
+  implementation libs.protobufJava
+
+  testImplementation libs.junit
+  testImplementation libs.assertk
+  testImplementation projects.testHelpers
+}

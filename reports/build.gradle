@@ -1,0 +1,12 @@
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'com.vanniktech.maven.publish'
+apply plugin: 'org.jetbrains.dokka'
+
+dependencies {
+  api projects.formats
+  implementation libs.picnic
+  implementation libs.diffUtils
+
+  testImplementation libs.junit
+  testImplementation libs.assertk
+}

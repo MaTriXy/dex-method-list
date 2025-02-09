@@ -1,0 +1,27 @@
+[versions]
+# Keep this values in sync with bundletool"s dependencies.
+aapt2Proto = "8.8.0-12006047"
+protobufJava = "3.25.6"
+guava = "30.1-jre"
+
+[libraries]
+dalvikDx = "com.jakewharton.android.repackaged:dalvik-dx:14.0.0_r21"
+binaryResources = "com.android.tools.apkparser:binary-resources:31.8.0"
+apkSigner = "com.android.tools.build:apksig:8.8.0"
+bundleTool = "com.android.tools.build:bundletool:1.18.0"
+aapt2Proto = { module = "com.android.tools.build:aapt2-proto", version.ref = "aapt2Proto" }
+protobufJava = { module = "com.google.protobuf:protobuf-java", version.ref = "protobufJava" }
+clikt = "com.github.ajalt.clikt:clikt:5.0.2"
+junit = "junit:junit:4.13.2"
+assertk = "com.willowtreeapps.assertk:assertk:0.28.1"
+okio = "com.squareup.okio:okio:3.10.2"
+byteunits = "com.jakewharton.byteunits:byteunits:0.9.1"
+asm = "org.ow2.asm:asm:9.7.1"
+diffUtils = "io.github.java-diff-utils:java-diff-utils:4.15"
+picnic = "com.jakewharton.picnic:picnic:0.7.0"
+mordant = "com.github.ajalt.mordant:mordant:3.0.1"
+kotlinPlugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.10"
+dokkaPlugin = "org.jetbrains.dokka:dokka-gradle-plugin:2.0.0"
+mavenPublishPlugin = "com.vanniktech:gradle-maven-publish-plugin:0.30.0"
+spotlessPlugin = "com.diffplug.spotless:spotless-plugin-gradle:6.25.0"
+buildConfigPlugin = "com.github.gmazzo.buildconfig:plugin:5.5.1"

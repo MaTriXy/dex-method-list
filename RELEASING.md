@@ -1,13 +1,48 @@
-Releasing
-=========
+# Releasing
 
- 1. Change the version in `build.gradle` to a non-SNAPSHOT version.
- 2. Update the `CHANGELOG.md` for the impending release.
- 3. Update the `README.md` with the new version.
- 4. `git commit -am "Prepare for release X.Y.Z."` (where X.Y.Z is the new version)
- 5. `./gradlew clean uploadArchives`
- 6. Visit [Sonatype Nexus](https://oss.sonatype.org/) and promote the artifact.
- 7. `git tag -a X.Y.Z -m "Version X.Y.Z"` (where X.Y.Z is the new version)
- 8. Update the `build.gradle` to the next SNAPSHOT version.
- 9. `git commit -am "Prepare next development version."`
- 10. `git push && git push --tags`
+1. Update the `VERSION_NAME` in `gradle.properties` to the release version.
+
+2. Update the `CHANGELOG.md`:
+   1. Change the `Unreleased` header to the release version.
+   2. Add a link URL to ensure the header link works.
+   3. Add a new `Unreleased` section to the top.
+
+3. Commit
+
+   ```
+   $ git commit -am "Prepare version X.Y.X"
+   ```
+
+4. Publish
+
+    ```
+    $ ./gradlew clean publish
+    ```
+
+    If this fails, fix, commit, and repeat.
+    You may also have to drop the Sonatype repository.
+
+5. Tag
+
+   ```
+   $ git tag -am "Version X.Y.Z" X.Y.Z
+   ```
+
+6. Update the `VERSION_NAME` in `gradle.properties` to the next "SNAPSHOT" version.
+
+7. Commit
+
+   ```
+   $ git commit -am "Prepare next development version"
+   ```
+
+8. Push!
+
+   ```
+   $ git push && git push --tags
+   ```
+
+   This will trigger a GitHub Action workflow which will create a GitHub release with the
+   change log and binary, and send a PR to the Homebrew repo.
+
+9. Find [the Homebrew PR](https://github.com/JakeWharton/homebrew-repo/pulls) and merge it!

@@ -1,0 +1,51 @@
+name: build
+
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+  push:
+    branches:
+      - 'trunk'
+    tags:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: ./gradlew build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diffuse-cli.zip
+          path: diffuse/build/distributions/diffuse-*.zip
+          if-no-files-found: error
+
+      - run: ./gradlew publish
+        if: ${{ github.ref == 'refs/heads/trunk' && github.repository == 'JakeWharton/diffuse' }}
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
+
+      - name: Extract release notes
+        id: release_notes
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ffurrer2/extract-release-notes@v2
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.release_notes.outputs.release_notes }}
+          files: diffuse/build/distributions/diffuse-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

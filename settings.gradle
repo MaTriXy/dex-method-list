@@ -1,0 +1,24 @@
+pluginManagement {
+  dependencyResolutionManagement {
+    repositories {
+      mavenCentral()
+      gradlePluginPortal()
+    }
+  }
+}
+dependencyResolutionManagement {
+  repositories {
+    mavenCentral()
+    google()
+  }
+}
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+rootProject.name = 'diffuse-root'
+
+include ':diffuse'
+include ':formats'
+include ':io'
+include ':reports'
+include ':test-helpers'
